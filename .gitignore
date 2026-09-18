@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.env
+state.json
+state.json.tmp
+health-state/
+.python/
+pytest-cache-files-*/
+.venv312/

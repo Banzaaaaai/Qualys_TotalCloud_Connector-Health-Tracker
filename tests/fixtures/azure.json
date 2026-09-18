@@ -1,0 +1,41 @@
+{
+  "ServiceResponse": {
+    "responseCode": "SUCCESS",
+    "count": 1,
+    "hasMoreRecords": "false",
+    "data": [
+      {
+        "AzureAssetDataConnector": {
+          "id": 101,
+          "name": "AZURE fixture",
+          "connectorState": "ERROR",
+          "disabled": "false",
+          "lastSync": "2026-01-01T00:00:00Z",
+          "nextSync": "2026-01-02T00:00:00Z",
+          "cloudviewUuid": "sample-uuid",
+          "authRecord": {
+            "subscriptionId": "sample-subscription",
+            "directoryId": "sample-tenant",
+            "authenticationKey": "fixture-secret"
+          },
+          "connectorAppInfos": {
+            "list": [
+              {
+                "ConnectorAppInfoQList": {
+                  "list": [
+                    {
+                      "ConnectorAppInfo": {
+                        "name": "CSA",
+                        "errorMessage": "Access denied"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

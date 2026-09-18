@@ -1,0 +1,89 @@
+﻿name: Connector health
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview emails without sending or saving state
+        type: boolean
+        default: true
+      force_notify:
+        description: Ignore grace period (still respects episode dedup)
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: connector-health
+  cancel-in-progress: false
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - name: Check out state or prepare orphan branch
+        id: state
+        shell: bash
+        run: |
+          set -euo pipefail
+          refs=$(git ls-remote --heads origin refs/heads/health-state)
+          if [[ -n "$refs" ]]; then
+            git fetch origin refs/heads/health-state:refs/remotes/origin/health-state
+            git worktree add -b health-state health-state refs/remotes/origin/health-state
+            if [[ ! -f health-state/state.json ]]; then
+              echo 'Existing health-state branch has no state.json; refusing to reset history.' >&2
+              exit 1
+            fi
+          else
+            mkdir health-state
+            git -C health-state init --initial-branch=health-state
+            git -C health-state remote add origin "$(git remote get-url origin)"
+            # Share checkout's credential helper without embedding a token in commands.
+            git config --local --get-regexp '^http\..*\.extraheader$' |
+              while IFS=' ' read -r key value; do
+                git -C health-state config --local "$key" "$value"
+              done
+          fi
+      - name: Monitor connectors
+        id: monitor
+        env:
+          QUALYS_BASE_URL: ${{ vars.QUALYS_BASE_URL }}
+          QUALYS_USERNAME: ${{ secrets.QUALYS_USERNAME }}
+          QUALYS_PASSWORD: ${{ secrets.QUALYS_PASSWORD }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ALERT_RECIPIENTS: ${{ secrets.ALERT_RECIPIENTS }}
+          GRACE_HOURS: ${{ vars.GRACE_HOURS }}
+          GRACE_TOLERANCE_HOURS: ${{ vars.GRACE_TOLERANCE_HOURS }}
+          REMIND_EVERY_HOURS: ${{ vars.REMIND_EVERY_HOURS }}
+          PROVIDERS: ${{ vars.PROVIDERS }}
+          INCLUDE_RESOLVED: ${{ vars.INCLUDE_RESOLVED }}
+          DRY_RUN: ${{ inputs.dry_run || false }}
+          FORCE_NOTIFY: ${{ inputs.force_notify || false }}
+        shell: bash
+        run: |
+          args=(run --state-file health-state/state.json)
+          [[ "$DRY_RUN" != true ]] || args+=(--dry-run)
+          [[ "$FORCE_NOTIFY" != true ]] || args+=(--force-notify)
+          python -m connector_health "${args[@]}"
+      - name: Persist successful provider observations even if monitoring failed
+        if: ${{ always() && steps.state.outcome == 'success' && !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f health-state/state.json ]]; then exit 0; fi
+          git -C health-state config user.name 'github-actions[bot]'
+          git -C health-state config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C health-state add -- state.json
+          if ! git -C health-state diff --cached --quiet; then
+            git -C health-state commit -m "chore(state): update $(date -u +%F)" -- state.json
+            git -C health-state push origin HEAD:refs/heads/health-state
+          fi
