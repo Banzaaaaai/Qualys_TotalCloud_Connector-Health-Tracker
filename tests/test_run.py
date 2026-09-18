@@ -146,11 +146,13 @@ def test_smtp_tls_and_partial_refusal(monkeypatch):
     factory = Mock()
     factory.return_value.__enter__ = Mock(return_value=smtp)
     factory.return_value.__exit__ = Mock(return_value=False)
-    monkeypatch.setattr("connector_health.notifier.smtplib.SMTP_SSL", factory)
+    monkeypatch.setattr("connector_health.notifier.smtplib.SMTP", factory)
     with pytest.raises(MailError):
         send_email(Mock(), CONFIG)
-    assert factory.call_args.args == ("smtp.gmail.com", 465)
-    assert factory.call_args.kwargs["context"].check_hostname
+    assert factory.call_args.args == ("smtp.gmail.com", 587)
+    assert factory.call_args.kwargs["timeout"] == 30
+    assert smtp.starttls.call_args.kwargs["context"].check_hostname
+    assert smtp.ehlo.call_count == 2
 
 
 def test_summary(tmp_path, monkeypatch):
@@ -159,3 +161,37 @@ def test_summary(tmp_path, monkeypatch):
     process(CONFIG, client_for(CONNECTORS), tmp_path / "state.json", now=NOW)
     text = summary.read_text()
     assert "| AWS | 2 | 0 | 2 | 0 | 0 |" in text
+
+
+@pytest.mark.parametrize("tls_fails", [False, True])
+def test_smtp_starttls_before_authentication(monkeypatch, tls_fails):
+    import smtplib
+    from unittest.mock import ANY, call
+
+    smtp = Mock()
+    smtp.send_message.return_value = {}
+    if tls_fails:
+        smtp.starttls.side_effect = smtplib.SMTPNotSupportedError("STARTTLS unavailable")
+    factory = Mock()
+    factory.return_value.__enter__ = Mock(return_value=smtp)
+    factory.return_value.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr("connector_health.notifier.smtplib.SMTP", factory)
+    message = Mock()
+    config = replace(CONFIG, smtp_host="smtp.example.com", smtp_port=2525)
+    if tls_fails:
+        with pytest.raises(MailError):
+            send_email(message, config)
+        smtp.login.assert_not_called()
+        smtp.send_message.assert_not_called()
+    else:
+        send_email(message, config)
+        assert smtp.method_calls == [
+            call.ehlo(),
+            call.starttls(context=ANY),
+            call.ehlo(),
+            call.login(config.smtp_user, config.smtp_password),
+            call.send_message(
+                message, from_addr=config.smtp_user, to_addrs=list(config.recipients)
+            ),
+        ]
+    factory.assert_called_once_with("smtp.example.com", 2525, timeout=30)

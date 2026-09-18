@@ -22,8 +22,8 @@ class Config:
     base_url: str
     username: str
     password: str
-    gmail_user: str = ""
-    gmail_password: str = ""
+    smtp_user: str = ""
+    smtp_password: str = ""
     recipients: tuple[str, ...] = ()
     providers: tuple[str, ...] = ("AWS", "AZURE", "GCP")
     grace_hours: float = 24
@@ -32,6 +32,8 @@ class Config:
     include_resolved: bool = False
     run_url: str = ""
     run_id: str = "local"
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
 
     @classmethod
     def from_env(cls, dry_run=False):
@@ -66,16 +68,20 @@ class Config:
         resolved = (os.environ.get("INCLUDE_RESOLVED") or "false").lower()
         if resolved not in {"true", "false"}:
             raise ValueError("INCLUDE_RESOLVED must be true or false")
+        smtp_host = (os.environ.get("SMTP_HOST") or "smtp.gmail.com").strip()
+        smtp_port = int(os.environ.get("SMTP_PORT") or "587")
+        if not smtp_host or any(c.isspace() for c in smtp_host) or not 1 <= smtp_port <= 65535:
+            raise ValueError("Invalid SMTP host or port")
         mail = {
             k: os.environ.get(k, "") if dry_run else required(k)
-            for k in ("GMAIL_USER", "GMAIL_APP_PASSWORD", "ALERT_RECIPIENTS")
+            for k in ("SMTP_USER", "SMTP_PASSWORD", "EMAIL_TO")
         }
-        recipients = tuple(x.strip() for x in mail["ALERT_RECIPIENTS"].split(",") if x.strip())
-        for address in (mail["GMAIL_USER"], *recipients):
+        recipients = tuple(x.strip() for x in mail["EMAIL_TO"].split(",") if x.strip())
+        for address in (mail["SMTP_USER"], *recipients):
             if address and ("@" not in address or any(c in address for c in "\r\n")):
                 raise ValueError("Invalid email address")
         if not dry_run and not recipients:
-            raise ValueError("Missing ALERT_RECIPIENTS")
+            raise ValueError("Missing EMAIL_TO")
         run_id = os.environ.get("GITHUB_RUN_ID", "local")
         repo = os.environ.get("GITHUB_REPOSITORY", "")
         server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
@@ -83,12 +89,14 @@ class Config:
             base,
             required("QUALYS_USERNAME"),
             required("QUALYS_PASSWORD"),
-            mail["GMAIL_USER"],
-            mail["GMAIL_APP_PASSWORD"],
+            mail["SMTP_USER"],
+            mail["SMTP_PASSWORD"],
             recipients,
             providers_from(os.environ.get("PROVIDERS") or "AWS,AZURE,GCP"),
             *numbers,
             resolved == "true",
             f"{server}/{repo}/actions/runs/{run_id}" if repo else "",
             run_id,
+            smtp_host,
+            smtp_port,
         )

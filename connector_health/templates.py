@@ -13,7 +13,7 @@ def build_email(provider, result, now, config, forced=False):
         f"[Qualys Connector Health][{provider}] {len(result.eligible)} "
         f"connector(s) failing > {config.grace_hours:g}h{suffix}"
     )
-    message["From"] = config.gmail_user or "dry-run@example.invalid"
+    message["From"] = config.smtp_user or "dry-run@example.invalid"
     message["To"] = ", ".join(config.recipients) or "dry-run@example.invalid"
     message["Date"] = format_datetime(now)
     message["Message-ID"] = make_msgid()

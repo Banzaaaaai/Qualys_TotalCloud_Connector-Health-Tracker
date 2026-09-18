@@ -176,7 +176,7 @@ def redact_payload(payload, known_secrets):
 class QualysClient:
     def __init__(self, config, session=None, sleep=time.sleep):
         self.base = config.base_url
-        self.secrets = (config.username, config.password, config.gmail_password)
+        self.secrets = (config.username, config.password, config.smtp_password)
         self.session = session or requests.Session()
         self.session.auth = (config.username, config.password)
         self.session.headers.update(

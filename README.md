@@ -1,4 +1,4 @@
-﻿# Qualys Cloud Connector Health Tracker
+# Qualys Cloud Connector Health Tracker
 
 A Python 3.12 GitHub Actions job that observes AWS, Azure and GCP connectors daily and sends one Gmail message per provider with eligible failures. State lives on the private repository's orphan `health-state` branch. No external database, state cache, or artifacts are used.
 
@@ -13,9 +13,13 @@ A Python 3.12 GitHub Actions job that observes AWS, Azure and GCP connectors dai
 | --- | --- |
 | `QUALYS_USERNAME` | Dedicated API username |
 | `QUALYS_PASSWORD` | API password |
-| `GMAIL_USER` | Full sending Gmail address |
-| `GMAIL_APP_PASSWORD` | Google App Password |
-| `ALERT_RECIPIENTS` | Comma-separated email addresses |
+| `SMTP_HOST` | `smtp.gmail.com` (default) |
+| `SMTP_PORT` | `587` (default, STARTTLS) |
+| `SMTP_USER` | Full sending Gmail address |
+| `SMTP_PASSWORD` | Google App Password |
+| `EMAIL_TO` | Comma-separated email addresses |
+
+Use the same five email secret names and values as your release tracker. For Gmail, `SMTP_PASSWORD` is the Google App Password. Set these secrets in this repository too; repository secrets are not automatically shared. If you configured the original names, migrate `GMAIL_USER` to `SMTP_USER`, `GMAIL_APP_PASSWORD` to `SMTP_PASSWORD`, and `ALERT_RECIPIENTS` to `EMAIL_TO`. Port 465 implicit SSL has been replaced by STARTTLS on port 587.
 
 5. Add repository **Actions variables**:
 
@@ -85,7 +89,7 @@ Basic auth and `X-Requested-With: python-requests` / `Accept: application/json` 
 
 Only selected fields leave the API client. Auth records are never serialized into state or logs; credential fields are discarded, and configured secrets plus credential values identified in API responses are redacted from strings. Ordinary INFO logs contain JSON event records, counts, and connector ids, never request bodies or auth headers. Dry-run email previews intentionally expose connector names/account metadata/error text in private Actions logs. Qualys must not include unrelated secrets in free-form error text; arbitrary unknown secrets cannot be identified reliably.
 
-Gmail uses `smtp.gmail.com:465`, certificate-verified TLS and stdlib `smtplib`/`email`. HTML escapes every API-provided string. Plain text includes untruncated error details for Jira. Only providers with eligible failures get mail. Secrets are scoped to the monitor step; action versions are pinned to full commit SHAs. The pip cache contains dependencies only, never monitoring state.
+Email follows [qualys-release-tracker](https://github.com/Banzaaaaai/qualys-release-tracker): configurable `SMTP_HOST`/`SMTP_PORT` (defaults `smtp.gmail.com:587`), certificate-verified STARTTLS before authentication and stdlib `smtplib`/`email`. HTML escapes every API-provided string. Plain text includes untruncated error details for Jira. Only providers with eligible failures get mail. Secrets are scoped to the monitor step; action versions are pinned to full commit SHAs. The pip cache contains dependencies only, never monitoring state.
 
 The state branch retains historical names and error messages in Git history. Restrict repository access and follow your organization's retention policy. If state becomes corrupt, restore a known-good `state.json` from branch history before rerunning; do not delete it casually because that restarts grace and deduplication.
 

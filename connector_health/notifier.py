@@ -8,12 +8,13 @@ class MailError(Exception):
 
 def send_email(message, config):
     try:
-        with smtplib.SMTP_SSL(
-            "smtp.gmail.com", 465, timeout=30, context=ssl.create_default_context()
-        ) as smtp:
-            smtp.login(config.gmail_user, config.gmail_password)
+        with smtplib.SMTP(config.smtp_host, config.smtp_port, timeout=30) as smtp:
+            smtp.ehlo()
+            smtp.starttls(context=ssl.create_default_context())
+            smtp.ehlo()
+            smtp.login(config.smtp_user, config.smtp_password)
             refused = smtp.send_message(
-                message, from_addr=config.gmail_user, to_addrs=list(config.recipients)
+                message, from_addr=config.smtp_user, to_addrs=list(config.recipients)
             )
             if refused:
                 raise MailError("recipient_refused")
