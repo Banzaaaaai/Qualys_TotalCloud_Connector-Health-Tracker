@@ -3,7 +3,7 @@
     "AWS:1728389": {
       "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
       "last_error": "lastError: API error in all regions",
-      "last_seen_at": "2026-09-21T12:31:19.821222+00:00",
+      "last_seen_at": "2026-09-22T11:20:02.094445+00:00",
       "last_state": "FINISHED_ERRORS",
       "name": "166879990045",
       "notified_at": "2026-09-18T21:28:13.042502+00:00"
@@ -11,57 +11,9 @@
     "AWS:2414594": {
       "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
       "last_error": "lastError: API error in all regions",
-      "last_seen_at": "2026-09-21T12:31:19.821222+00:00",
+      "last_seen_at": "2026-09-22T11:20:02.094445+00:00",
       "last_state": "FINISHED_ERRORS",
       "name": "419819289017",
-      "notified_at": "2026-09-18T21:28:13.042502+00:00"
-    },
-    "AZURE:1879666": {
-      "first_error_seen_at": "2026-09-21T12:31:19.821222+00:00",
-      "last_error": "lastError: Error occurred while fetching resource groups: Failed to acquire token: null",
-      "last_seen_at": "2026-09-21T12:31:19.821222+00:00",
-      "last_state": "FINISHED_ERRORS",
-      "name": "azure-pre-prod_EA.VZ-PP.Connectivity",
-      "notified_at": null
-    },
-    "GCP:2440439": {
-      "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
-      "last_error": "lastError: The mandatory Compute Engine API is disabled. You must enable this API from the Google Cloud console.",
-      "last_seen_at": "2026-09-21T12:31:19.821222+00:00",
-      "last_state": "FINISHED_ERRORS",
-      "name": "cet-_sys-01987377858283878621652516",
-      "notified_at": "2026-09-18T21:28:13.042502+00:00"
-    },
-    "GCP:2440440": {
-      "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
-      "last_error": "lastError: The mandatory Compute Engine API is disabled. You must enable this API from the Google Cloud console.",
-      "last_seen_at": "2026-09-21T12:31:19.821222+00:00",
-      "last_state": "FINISHED_ERRORS",
-      "name": "cet-_sys-78961971832431602472584098",
-      "notified_at": "2026-09-18T21:28:13.042502+00:00"
-    },
-    "GCP:2440441": {
-      "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
-      "last_error": "lastError: The mandatory Compute Engine API is disabled. You must enable this API from the Google Cloud console.",
-      "last_seen_at": "2026-09-21T12:31:19.821222+00:00",
-      "last_state": "FINISHED_ERRORS",
-      "name": "cet-_sys-17740686247679356233630013",
-      "notified_at": "2026-09-18T21:28:13.042502+00:00"
-    },
-    "GCP:2440442": {
-      "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
-      "last_error": "lastError: The mandatory Compute Engine API is disabled. You must enable this API from the Google Cloud console.",
-      "last_seen_at": "2026-09-21T12:31:19.821222+00:00",
-      "last_state": "FINISHED_ERRORS",
-      "name": "cet-_sys-16000545176166892390990094",
-      "notified_at": "2026-09-18T21:28:13.042502+00:00"
-    },
-    "GCP:2447499": {
-      "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
-      "last_error": "lastError: The mandatory Compute Engine API is disabled. You must enable this API from the Google Cloud console.",
-      "last_seen_at": "2026-09-21T12:31:19.821222+00:00",
-      "last_state": "FINISHED_ERRORS",
-      "name": "cet-_sys-86361854196574273365402425",
       "notified_at": "2026-09-18T21:28:13.042502+00:00"
     }
   },
