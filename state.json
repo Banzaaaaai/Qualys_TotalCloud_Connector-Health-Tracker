@@ -3,17 +3,9 @@
     "AWS:1728389": {
       "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
       "last_error": "lastError: API error in all regions",
-      "last_seen_at": "2026-09-24T11:29:26.193041+00:00",
+      "last_seen_at": "2026-09-25T11:35:11.421592+00:00",
       "last_state": "FINISHED_ERRORS",
       "name": "166879990045",
-      "notified_at": "2026-09-18T21:28:13.042502+00:00"
-    },
-    "AWS:2414594": {
-      "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
-      "last_error": "lastError: API error in all regions",
-      "last_seen_at": "2026-09-24T11:29:26.193041+00:00",
-      "last_state": "FINISHED_ERRORS",
-      "name": "419819289017",
       "notified_at": "2026-09-18T21:28:13.042502+00:00"
     }
   },
