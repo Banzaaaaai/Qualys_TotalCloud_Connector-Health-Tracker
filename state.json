@@ -3,10 +3,18 @@
     "AWS:1728389": {
       "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
       "last_error": "lastError: API error in all regions",
-      "last_seen_at": "2026-09-25T11:35:11.421592+00:00",
+      "last_seen_at": "2026-09-26T11:09:35.971453+00:00",
       "last_state": "FINISHED_ERRORS",
       "name": "166879990045",
       "notified_at": "2026-09-18T21:28:13.042502+00:00"
+    },
+    "AZURE:1720121": {
+      "first_error_seen_at": "2026-09-26T11:09:35.971453+00:00",
+      "last_error": "lastError: There was an error fetching/processing data. Please contact support",
+      "last_seen_at": "2026-09-26T11:09:35.971453+00:00",
+      "last_state": "FINISHED_ERRORS",
+      "name": "Azure-Main-Tenant_EA.NL.Vodafone-Ziggo",
+      "notified_at": null
     }
   },
   "resolved": {},
