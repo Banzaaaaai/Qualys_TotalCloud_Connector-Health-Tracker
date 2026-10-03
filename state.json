@@ -3,26 +3,10 @@
     "AWS:1728389": {
       "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
       "last_error": "lastError: API error in all regions",
-      "last_seen_at": "2026-10-02T12:16:18.849159+00:00",
+      "last_seen_at": "2026-10-03T11:26:29.898642+00:00",
       "last_state": "FINISHED_ERRORS",
       "name": "166879990045",
       "notified_at": "2026-09-18T21:28:13.042502+00:00"
-    },
-    "AZURE:1720143": {
-      "first_error_seen_at": "2026-10-02T12:16:18.849159+00:00",
-      "last_error": "lastError: Error occurred while fetching virtual Machine for resource group:DefaultResourceGroup-WUS2",
-      "last_seen_at": "2026-10-02T12:16:18.849159+00:00",
-      "last_state": "FINISHED_ERRORS",
-      "name": "Azure-Main-Tenant_Subscription-AzureVirtualDesktop-Production",
-      "notified_at": null
-    },
-    "AZURE:1720149": {
-      "first_error_seen_at": "2026-10-02T12:16:18.849159+00:00",
-      "last_error": "lastError: There was an error fetching/processing data. Please contact support",
-      "last_seen_at": "2026-10-02T12:16:18.849159+00:00",
-      "last_state": "FINISHED_ERRORS",
-      "name": "Azure-Main-Tenant_Subscription-Github-CoPilot-Production",
-      "notified_at": null
     }
   },
   "resolved": {},
