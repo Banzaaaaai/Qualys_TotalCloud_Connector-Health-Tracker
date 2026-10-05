@@ -3,7 +3,7 @@
     "AWS:1728389": {
       "first_error_seen_at": "2026-09-18T21:28:13.042502+00:00",
       "last_error": "lastError: API error in all regions",
-      "last_seen_at": "2026-10-04T12:07:41.094084+00:00",
+      "last_seen_at": "2026-10-05T14:14:00.381423+00:00",
       "last_state": "FINISHED_ERRORS",
       "name": "166879990045",
       "notified_at": "2026-09-18T21:28:13.042502+00:00"
