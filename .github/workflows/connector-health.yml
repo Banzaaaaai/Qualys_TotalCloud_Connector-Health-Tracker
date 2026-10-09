@@ -12,6 +12,11 @@ on:
         description: Ignore grace period (still respects episode dedup)
         type: boolean
         default: false
+      monthly_report:
+        description: After monitoring, show (log) or email the current month-to-date report
+        type: choice
+        options: [none, log, email]
+        default: none
 permissions:
   contents: write
 concurrency:
@@ -76,6 +81,20 @@ jobs:
           [[ "$DRY_RUN" != true ]] || args+=(--dry-run)
           [[ "$FORCE_NOTIFY" != true ]] || args+=(--force-notify)
           python -m connector_health "${args[@]}"
+      - name: Month-to-date report on demand
+        if: ${{ inputs.monthly_report == 'log' || inputs.monthly_report == 'email' }}
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          MONTHLY_REPORT: ${{ inputs.monthly_report }}
+        shell: bash
+        run: |
+          args=(report --state-file health-state/state.json)
+          [[ "$MONTHLY_REPORT" != email ]] || args+=(--send)
+          python -m connector_health "${args[@]}"
       - name: Persist successful provider observations even if monitoring failed
         if: ${{ always() && steps.state.outcome == 'success' && !inputs.dry_run }}
         shell: bash
@@ -84,8 +103,8 @@ jobs:
           if [[ ! -f health-state/state.json ]]; then exit 0; fi
           git -C health-state config user.name 'github-actions[bot]'
           git -C health-state config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git -C health-state add -- state.json
+          git -C health-state add -A -- state.json $([[ -d health-state/monthly ]] && echo monthly)
           if ! git -C health-state diff --cached --quiet; then
-            git -C health-state commit -m "chore(state): update $(date -u +%F)" -- state.json
+            git -C health-state commit -m "chore(state): update $(date -u +%F)"
             git -C health-state push origin HEAD:refs/heads/health-state
           fi

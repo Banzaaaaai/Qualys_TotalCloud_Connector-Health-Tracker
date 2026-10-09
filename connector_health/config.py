@@ -36,16 +36,18 @@ class Config:
     smtp_port: int = 587
 
     @classmethod
-    def from_env(cls, dry_run=False):
+    def from_env(cls, dry_run=False, qualys=True):
+        """Load settings; qualys=False skips API settings for mail-only commands."""
+
         def required(key):
             value = os.environ.get(key, "").strip()
             if not value:
                 raise ValueError(f"Missing {key}")
             return value
 
-        base = required("QUALYS_BASE_URL").rstrip("/")
+        base = required("QUALYS_BASE_URL").rstrip("/") if qualys else ""
         url = urlsplit(base)
-        if (
+        if qualys and (
             url.scheme != "https"
             or not url.hostname
             or url.username
@@ -87,8 +89,8 @@ class Config:
         server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
         return cls(
             base,
-            required("QUALYS_USERNAME"),
-            required("QUALYS_PASSWORD"),
+            required("QUALYS_USERNAME") if qualys else "",
+            required("QUALYS_PASSWORD") if qualys else "",
             mail["SMTP_USER"],
             mail["SMTP_PASSWORD"],
             recipients,

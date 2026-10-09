@@ -1,6 +1,6 @@
 # Qualys Cloud Connector Health Tracker
 
-A Python 3.12 GitHub Actions job that observes AWS, Azure and GCP connectors daily and sends one Gmail message per provider with eligible failures. State lives on the private repository's orphan `health-state` branch. No external database, state cache, or artifacts are used.
+A Python 3.12 GitHub Actions job that observes AWS, Azure and GCP connectors daily and sends one Gmail message per provider with eligible failures, plus a monthly statistics report. State lives on the private repository's orphan `health-state` branch. No external database, state cache, or artifacts are used.
 
 ## Setup
 
@@ -51,6 +51,21 @@ State keys are `provider:connector_id`. Each active episode contains `first_erro
 - A provider API failure, including a failed detail lookup or malformed/incomplete pagination, leaves that provider's state unchanged. Other providers continue. SMTP failure preserves new observations but does not mark alerts notified. Successful sends are saved per provider and the workflow persists state even when another provider fails.
 
 This is observation-based monitoring: it cannot prove uninterrupted failure between daily observations. SMTP delivery and Git commits cannot be one atomic transaction. If a runner stops or a push fails after mail acceptance, the next run can resend; partial SMTP recipient acceptance can also result in duplicates for recipients who already received it. State push failures must be investigated. Do not manually run concurrent live writers; GitHub runs are serialized with concurrency group `connector-health`.
+
+## Monthly report
+
+Every live run also records each connector it sees in `monthly/YYYY-MM.json` (UTC month) on the `health-state` branch: name, cloud account, status counts per check, when it was added or went missing, and whether its error episode is still open. The first run of a new month emails the previous month's report to `EMAIL_TO` and marks it sent; if SMTP fails, the job fails and the next run retries. Dry runs print the pending report instead.
+
+The report contains:
+
+- **Monitored connectors** per provider: start of month, added, removed, end of month, observed.
+- **Reported status at month end**: healthy, error, in progress, disabled, connectors that reported errors during the month, open issues, alerts sent, successful and failed daily checks.
+- Lists of **open issues at month end** (with days in error and last error), connectors that **reported errors but are no longer failing**, and **added** and **removed** connectors.
+- A CSV attachment with every connector and its monthly counts.
+
+Start of month is the previous month's surviving inventory. A provider's first ever successful check is a baseline, so the first month's report covers only the period since tracking began and does not list pre-existing connectors as added. A connector is removed when it is absent from a fully successful provider fetch; failed checks change nothing and are counted separately. Disabled connectors stay in the inventory with status Disabled.
+
+To see a month-to-date report, run Actions → Connector health → Run workflow with `monthly_report=log` (written to the job log) or `email`. On-demand reports never mark a month as sent. Locally: `python -m connector_health report --state-file health-state/state.json [--month YYYY-MM] [--send]`.
 
 ## API contract and field mapping
 
