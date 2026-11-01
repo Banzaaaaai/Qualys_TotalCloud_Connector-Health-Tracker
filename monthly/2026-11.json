@@ -16985,10 +16985,29 @@
       "name": "cet-_sys-86361854196574273365402425",
       "removed_at": null,
       "start_class": "disabled"
+    },
+    "OCI:2501386": {
+      "account": "ocid1.tenancy.oc1..aaaaaaaaxge6va7vrzooccofhlxzpf232jlog7kgywbityxq2wtvnoqkgeeq",
+      "added_at": null,
+      "counts": {
+        "disabled": 0,
+        "error": 1,
+        "healthy": 0,
+        "neutral": 0
+      },
+      "error_since": "2026-11-01T13:25:33.509950+00:00",
+      "in_start": true,
+      "last_class": "error",
+      "last_error": "",
+      "last_seen_at": "2026-11-01T13:25:33.509950+00:00",
+      "last_state": "FINISHED_ERRORS",
+      "name": "[VFZ] Vodafoneziggooci PaaS",
+      "removed_at": null,
+      "start_class": "error"
     }
   },
   "first_observed_at": "2026-11-01T13:00:29.740564+00:00",
-  "last_observed_at": "2026-11-01T13:00:29.740564+00:00",
+  "last_observed_at": "2026-11-01T13:25:33.509950+00:00",
   "month": "2026-11",
   "providers": {
     "AWS": {
@@ -17011,9 +17030,16 @@
       "baselined": true,
       "checks": 1,
       "failed_checks": 0
+    },
+    "OCI": {
+      "alerts_sent": 0,
+      "baseline_at": "2026-11-01T13:25:33.509950+00:00",
+      "baselined": true,
+      "checks": 1,
+      "failed_checks": 0
     }
   },
   "report_sent_at": null,
-  "runs": 1,
+  "runs": 2,
   "version": 1
 }
