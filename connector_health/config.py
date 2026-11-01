@@ -8,12 +8,13 @@ from urllib.parse import urlsplit
 ERROR_STATES = frozenset({"ERROR", "FINISHED_ERRORS", "INCOMPLETE"})
 NEUTRAL_STATES = frozenset({"QUEUED", "RUNNING", "PROCESSING", "PENDING"})
 HEALTHY_STATES = frozenset({"SUCCESS", "FINISHED_SUCCESS"})
+SUPPORTED_PROVIDERS = ("AWS", "AZURE", "GCP", "OCI")
 
 
 def providers_from(value: str) -> tuple[str, ...]:
     providers = tuple(dict.fromkeys(p.strip().upper() for p in value.split(",")))
-    if not providers or any(p not in {"AWS", "AZURE", "GCP"} for p in providers):
-        raise ValueError("PROVIDERS must contain AWS, AZURE or GCP")
+    if not providers or any(p not in SUPPORTED_PROVIDERS for p in providers):
+        raise ValueError("PROVIDERS must contain AWS, AZURE, GCP or OCI")
     return providers
 
 
@@ -25,7 +26,7 @@ class Config:
     smtp_user: str = ""
     smtp_password: str = ""
     recipients: tuple[str, ...] = ()
-    providers: tuple[str, ...] = ("AWS", "AZURE", "GCP")
+    providers: tuple[str, ...] = SUPPORTED_PROVIDERS
     grace_hours: float = 24
     tolerance_hours: float = 2
     remind_hours: float = 0
@@ -94,7 +95,7 @@ class Config:
             mail["SMTP_USER"],
             mail["SMTP_PASSWORD"],
             recipients,
-            providers_from(os.environ.get("PROVIDERS") or "AWS,AZURE,GCP"),
+            providers_from(os.environ.get("PROVIDERS") or ",".join(SUPPORTED_PROVIDERS)),
             *numbers,
             resolved == "true",
             f"{server}/{repo}/actions/runs/{run_id}" if repo else "",

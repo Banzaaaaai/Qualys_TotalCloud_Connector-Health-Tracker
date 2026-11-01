@@ -1,0 +1,45 @@
+{
+  "ServiceResponse": {
+    "responseCode": "SUCCESS",
+    "count": 1,
+    "hasMoreRecords": "false",
+    "data": [
+      {
+        "OciAssetDataConnector": {
+          "id": 101,
+          "name": "OCI fixture",
+          "connectorState": "FINISHED_ERRORS",
+          "type": "OCI",
+          "homeRegion": "us-ashburn-1",
+          "disabled": "false",
+          "lastSync": "2026-01-01T00:00:00Z",
+          "nextSync": "2026-01-02T00:00:00Z",
+          "cloudviewUuid": "sample-oci-uuid",
+          "authRecord": {
+            "tenantId": "ocid1.tenancy.oc1..example",
+            "userId": "ocid1.user.oc1..example",
+            "fingerprint": "synthetic-fingerprint",
+            "privateKey": "synthetic-oci-private-key-secret"
+          },
+          "connectorAppInfos": {
+            "list": [
+              {
+                "ConnectorAppInfoQList": {
+                  "list": [
+                    {
+                      "ConnectorAppInfo": {
+                        "name": "CSA",
+                        "identifier": "ocid1.tenancy.oc1..example",
+                        "errorMessage": "Access denied: synthetic-oci-private-key-secret"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

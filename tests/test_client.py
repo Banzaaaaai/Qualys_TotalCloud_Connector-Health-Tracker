@@ -13,25 +13,26 @@ CONFIG = Config("https://qualys.example", "user", "password")
 URL = CONFIG.base_url + "/qps/rest/3.0/search/am/awsassetdataconnector"
 
 
-def page(ids, **fields):
+def page(ids, provider="AWS", **fields):
+    wrapper = {"AWS": "AwsAssetDataConnector", "OCI": "OciAssetDataConnector"}[provider]
     return {
         "ServiceResponse": {
             "responseCode": "SUCCESS",
             "count": len(ids),
             "hasMoreRecords": "false",
-            "data": [
-                {"AwsAssetDataConnector": {"id": i, "connectorState": "SUCCESS"}} for i in ids
-            ],
+            "data": [{wrapper: {"id": i, "connectorState": "SUCCESS"}} for i in ids],
             **fields,
         }
     }
 
 
 @responses.activate
-def test_offset_pagination_and_headers():
-    responses.post(URL, json=page([1, 2], hasMoreRecords="true"))
-    responses.post(URL, json=page([3]))
-    result = QualysClient(CONFIG).fetch("AWS")
+@pytest.mark.parametrize("provider", ["AWS", "OCI"])
+def test_offset_pagination_and_headers(provider):
+    url = URL.replace("awsasset", provider.lower() + "asset")
+    responses.post(url, json=page([1, 2], provider, hasMoreRecords="true"))
+    responses.post(url, json=page([3], provider))
+    result = QualysClient(CONFIG).fetch(provider)
     assert [c.id for c in result] == ["1", "2", "3"]
     bodies = [json.loads(call.request.body) for call in responses.calls]
     assert [b["ServiceRequest"]["preferences"]["startFromOffset"] for b in bodies] == [1, 3]
@@ -41,10 +42,12 @@ def test_offset_pagination_and_headers():
 
 
 @responses.activate
-def test_last_id_pagination():
-    responses.post(URL, json=page([100], hasMoreRecords=True, lastId=100))
-    responses.post(URL, json=page([200]))
-    QualysClient(CONFIG).fetch("AWS")
+@pytest.mark.parametrize("provider", ["AWS", "OCI"])
+def test_last_id_pagination(provider):
+    url = URL.replace("awsasset", provider.lower() + "asset")
+    responses.post(url, json=page([100], provider, hasMoreRecords=True, lastId=100))
+    responses.post(url, json=page([200], provider))
+    QualysClient(CONFIG).fetch(provider)
     body = json.loads(responses.calls[1].request.body)["ServiceRequest"]
     assert body["filters"]["Criteria"] == [{"field": "id", "operator": "GREATER", "value": "100"}]
     assert body["preferences"]["startFromOffset"] == 1
@@ -98,14 +101,18 @@ def test_repeated_page_fails():
 
 
 @responses.activate
-def test_detail_fallback():
-    payload = page([1])
-    payload["ServiceResponse"]["data"][0]["AwsAssetDataConnector"]["connectorState"] = "ERROR"
-    responses.post(URL, json=payload)
-    detail = page([1])
-    detail["ServiceResponse"]["data"][0]["AwsAssetDataConnector"]["lastError"] = "Denied"
-    responses.get(CONFIG.base_url + "/qps/rest/3.0/get/am/awsassetdataconnector/1", json=detail)
-    assert QualysClient(CONFIG).fetch("AWS")[0].error == "lastError: Denied"
+@pytest.mark.parametrize("provider", ["AWS", "OCI"])
+def test_detail_fallback(provider):
+    url = URL.replace("awsasset", provider.lower() + "asset")
+    payload = page([1], provider)
+    raw = next(iter(payload["ServiceResponse"]["data"][0].values()))
+    raw["connectorState"] = "ERROR"
+    responses.post(url, json=payload)
+    detail = page([1], provider)
+    raw_detail = next(iter(detail["ServiceResponse"]["data"][0].values()))
+    raw_detail["lastError"] = "Denied"
+    responses.get(url.replace("/search/", "/get/") + "/1", json=detail)
+    assert QualysClient(CONFIG).fetch(provider)[0].error == "lastError: Denied"
 
 
 def test_missing_fields():
@@ -117,7 +124,7 @@ def test_missing_fields():
 
 
 @responses.activate
-@pytest.mark.parametrize("provider", ["AWS", "AZURE", "GCP"])
+@pytest.mark.parametrize("provider", ["AWS", "AZURE", "GCP", "OCI"])
 def test_fixtures(provider):
     payload = json.loads(
         (Path(__file__).parent / "fixtures" / f"{provider.lower()}.json").read_text()
@@ -127,6 +134,9 @@ def test_fixtures(provider):
     connector = QualysClient(CONFIG).fetch(provider)[0]
     assert connector.account and connector.error and connector.last_sync
     assert "secret" not in repr(connector)
+    if provider == "OCI":
+        assert connector.account == "ocid1.tenancy.oc1..example"
+        assert connector.error == "errorMessage: Access denied: [REDACTED]"
 
 
 @responses.activate

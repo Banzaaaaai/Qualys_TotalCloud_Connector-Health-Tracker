@@ -7,6 +7,8 @@ from email.message import EmailMessage
 from email.utils import format_datetime, make_msgid
 from html import escape
 
+from .config import SUPPORTED_PROVIDERS
+
 
 def build_email(provider, result, now, config, forced=False):
     message = EmailMessage()
@@ -69,7 +71,6 @@ def build_email(provider, result, now, config, forced=False):
 
 
 LABELS = {"healthy": "Healthy", "error": "Error", "neutral": "In progress", "disabled": "Disabled"}
-PROVIDER_ORDER = ("AWS", "AZURE", "GCP")
 
 
 def table(headers, rows):
@@ -143,7 +144,7 @@ def build_monthly_email(stats, config, complete=True):
     month = datetime.strptime(stats["month"], "%Y-%m").strftime("%B %Y")
     end = datetime.fromisoformat(stats["last_observed_at"])
     entries = sorted(stats["connectors"].items())
-    providers = [p for p in PROVIDER_ORDER if p in stats["providers"]]
+    providers = [p for p in SUPPORTED_PROVIDERS if p in stats["providers"]]
 
     def split(key):
         provider, _, connector_id = key.partition(":")

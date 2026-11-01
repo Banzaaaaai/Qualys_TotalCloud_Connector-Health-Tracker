@@ -15,6 +15,7 @@ TYPES = {
     "AWS": ("awsassetdataconnector", "AwsAssetDataConnector"),
     "AZURE": ("azureassetdataconnector", "AzureAssetDataConnector"),
     "GCP": ("gcpassetdataconnector", "GcpAssetDataConnector"),
+    "OCI": ("ociassetdataconnector", "OciAssetDataConnector"),
 }
 ERROR_FIELDS = {"lastError", "error", "errorMessage", "message", "status", "state"}
 
@@ -69,6 +70,7 @@ def parse_connector(provider, raw):
             )
         ),
         "GCP": scalar(auth.get("projectId")) or scalar(raw.get("projectId")),
+        "OCI": scalar(auth.get("tenantId")),
     }
     errors = error_text({k: raw[k] for k in ("lastError", "error", "errorMessage") if k in raw})
     errors += error_text(raw.get("connectorAppInfos"))

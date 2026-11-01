@@ -5,6 +5,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from .config import SUPPORTED_PROVIDERS
+
 
 def empty_state():
     return {"version": 1, "episodes": {}, "resolved": {}}
@@ -23,7 +25,7 @@ def load(path):
         for key, entry in state[section].items():
             if (
                 not isinstance(key, str)
-                or key.partition(":")[0] not in {"AWS", "AZURE", "GCP"}
+                or key.partition(":")[0] not in SUPPORTED_PROVIDERS
                 or not key.partition(":")[2]
                 or not isinstance(entry, dict)
             ):

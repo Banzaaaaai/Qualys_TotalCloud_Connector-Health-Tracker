@@ -23,15 +23,23 @@ def test_config_defaults_without_smtp_in_dry_run(monkeypatch):
     config = Config.from_env(dry_run=True)
     assert config.grace_hours == 24 and config.tolerance_hours == 2
     assert config.smtp_host == "smtp.gmail.com" and config.smtp_port == 587
-    assert config.providers == ("AWS", "AZURE", "GCP")
+    assert config.providers == ("AWS", "AZURE", "GCP", "OCI")
     with pytest.raises(ValueError, match="Missing SMTP_USER"):
         Config.from_env()
 
 
-@pytest.mark.parametrize("value", ["", "OCI", "AWS,", "AWS,GCP,NOPE"])
+@pytest.mark.parametrize("value", ["", "ORACLE", "AWS,", "AWS,GCP,NOPE"])
 def test_invalid_provider(value):
     with pytest.raises(ValueError):
         providers_from(value)
+
+
+def test_oci_provider_selection(monkeypatch):
+    assert providers_from(" oci, AWS,OCI ") == ("OCI", "AWS")
+    monkeypatch.setenv("PROVIDERS", "OCI")
+    assert Config.from_env(dry_run=True, qualys=False).providers == ("OCI",)
+    monkeypatch.setenv("PROVIDERS", "AWS,AZURE,GCP")
+    assert Config.from_env(dry_run=True, qualys=False).providers == ("AWS", "AZURE", "GCP")
 
 
 @pytest.mark.parametrize(

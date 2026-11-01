@@ -1,6 +1,6 @@
 # Qualys Cloud Connector Health Tracker
 
-A Python 3.12 GitHub Actions job that observes AWS, Azure and GCP connectors daily and sends one Gmail message per provider with eligible failures, plus a monthly statistics report. State lives on the private repository's orphan `health-state` branch. No external database, state cache, or artifacts are used.
+A Python 3.12 GitHub Actions job that observes AWS, Azure, GCP and Oracle Cloud Infrastructure (OCI) connectors daily and sends one Gmail message per provider with eligible failures, plus a monthly statistics report. State lives on the private repository's orphan `health-state` branch. No external database, state cache, or artifacts are used.
 
 ## Setup
 
@@ -26,7 +26,7 @@ Use the same five email secret names and values as your release tracker. For Gma
 | Variable | Default / value |
 | --- | --- |
 | `QUALYS_BASE_URL` | Required: `https://qualysapi.qg2.apps.qualys.eu` |
-| `PROVIDERS` | `AWS,AZURE,GCP` (subset supported) |
+| `PROVIDERS` | `AWS,AZURE,GCP,OCI` (subset supported) |
 | `GRACE_HOURS` | `24` |
 | `GRACE_TOLERANCE_HOURS` | `2` |
 | `REMIND_EVERY_HOURS` | `0` (no reminders) |
@@ -36,6 +36,12 @@ Use the same five email secret names and values as your release tracker. For Gma
 7. The first non-dry run with a successful provider automatically initializes and pushes `health-state` as an orphan branch containing only `state.json`. No manual branch setup is necessary. If every provider fails, no branch is created. Later runs check out this branch into `health-state/`; a missing state file on an existing branch fails rather than silently losing history.
 
 The schedule is **06:00 UTC daily**. Change `on.schedule.cron` in `.github/workflows/connector-health.yml` to adjust it; cron cannot use a repository variable. Enable GitHub Actions failure notifications for your account. API, SMTP, configuration, corrupt state, and state push failures fail the job.
+
+### Adding OCI to an existing installation
+
+OCI uses the same `QUALYS_BASE_URL`, `QUALYS_USERNAME` and `QUALYS_PASSWORD` as the other providers. Ensure the Qualys API user can read your OCI connectors. No Oracle credentials or additional secrets are needed by this tracker.
+
+When `PROVIDERS` is unset or empty, OCI is included automatically. If you explicitly set `PROVIDERS`, append `OCI` (for example, `AWS,AZURE,GCP,OCI`). For a manual workflow dry run, set the optional `providers` input to `OCI`; leave it blank for the repository defaults. Locally: `python -m connector_health run --providers OCI --dry-run --force-notify`. Existing AWS/Azure/GCP history remains valid; OCI starts its own grace period and monthly inventory baseline on its first successful live check.
 
 ## Episode semantics
 
@@ -69,15 +75,16 @@ To see a month-to-date report, run Actions → Connector health → Run workflow
 
 ## API contract and field mapping
 
-The mapping is centralized in `connector_health/qualys_client.py`. Documentation checked on 2026-09-18:
+The mapping is centralized in `connector_health/qualys_client.py`. AWS/Azure/GCP documentation was checked on 2026-09-18; OCI documentation was checked on 2026-11-01:
 
 | Provider | Search (POST) and detail path (GET in this client) | Official docs |
 | --- | --- | --- |
 | AWS | `/qps/rest/3.0/search/am/awsassetdataconnector`; `/qps/rest/3.0/get/am/awsassetdataconnector/<id>` | [Search](https://docs.qualys.com/en/conn/api/aws_3/search_aws_connector_3.0.htm), [Details](https://docs.qualys.com/en/conn/api/aws_3/get_aws_connector_info_3.0.htm) |
 | Azure | `/qps/rest/3.0/search/am/azureassetdataconnector`; `/qps/rest/3.0/get/am/azureassetdataconnector/<id>` | [Search](https://docs.qualys.com/en/conn/api/azure_3/search_azure_connector_3.0.htm), [Details](https://docs.qualys.com/en/conn/api/azure_3/get_azure_connector_info_3.0.htm) |
 | GCP | `/qps/rest/3.0/search/am/gcpassetdataconnector`; `/qps/rest/3.0/get/am/gcpassetdataconnector/<id>` | [Search](https://docs.qualys.com/en/conn/api/gcp_3/search_gcp_connector_3.0.htm), [Details](https://docs.qualys.com/en/conn/api/gcp_3/get_gcp_connector_info_3.0.htm) |
+| OCI | `/qps/rest/3.0/search/am/ociassetdataconnector`; `/qps/rest/3.0/get/am/ociassetdataconnector/<id>` | [View / search OCI connectors](https://docs.qualys.com/en/tc/api/oci/view_oci_connector_3.0.htm) |
 
-The documented `ServiceResponse` envelope uses `responseCode`, `count`, `hasMoreRecords`, and `data` entries wrapped in `AwsAssetDataConnector`, `AzureAssetDataConnector`, or `GcpAssetDataConnector`. Only `SUCCESS` is accepted. Identity is required to track safely; a missing id fails the provider instead of inventing an id. Other connector fields are optional.
+The client requires a `ServiceResponse` envelope with `responseCode`, `count`, `hasMoreRecords` for searches, and `data` entries wrapped in `AwsAssetDataConnector`, `AzureAssetDataConnector`, `GcpAssetDataConnector`, or `OciAssetDataConnector`. Only `SUCCESS` is accepted. Identity is required to track safely; a missing id fails the provider instead of inventing an id. Other connector fields are optional.
 
 | Qualys field | Report/use | Verification |
 | --- | --- | --- |
@@ -87,6 +94,7 @@ The documented `ServiceResponse` envelope uses `responseCode`, `count`, `hasMore
 | `arn`, fallback `awsAccountId` | AWS cloud account | AWS samples |
 | `authRecord.subscriptionId`, `authRecord.directoryId` | Azure subscription / tenant | Azure samples |
 | `authRecord.projectId` | GCP project | GCP samples |
+| `authRecord.tenantId` | OCI tenancy OCID | OCI view/search sample; `userId`, `fingerprint` and `privateKey` are not exported |
 | `cloudviewUuid` | Parsed identifier; no enrichment requests | v3 samples |
 | `lastError` | Error details | Search docs describe this as an error **date**; older API examples also show text. Preserved literally, not interpreted as a guaranteed message. |
 | `error`, `errorMessage`; nested error/status leaves in `connectorAppInfos` | Additional error details | Defensive extensions; these error/status fields are **not guaranteed by v3 samples**. Documented app-info wrappers are traversed, not dumped. |
@@ -95,6 +103,10 @@ The documented `ServiceResponse` envelope uses `responseCode`, `count`, `hasMore
 When an error connector has no error/status text in the search result, a detail GET is attempted. If both responses omit it, reports say no error text was returned. Full error text is retained except secret redaction.
 
 **Documentation inconsistencies:** AWS's search JSON example is malformed, Azure's detail example invokes search, and GCP's detail example uses POST. Endpoint paths and fields above are confirmed, but Azure/GCP detail **GET behavior still requires a tenant smoke test**. This implementation uses the requested GET contract and fails the provider safely if rejected; it does not automatically try alternate methods. There is no confirmed UI deep-link format, so the email instructs you to search Connectors by id. Optional legacy CloudView enrichment is not implemented/enabled; no unverified endpoint is called.
+
+**OCI API research:** The [TotalCloud OCI view/search documentation](https://docs.qualys.com/en/tc/api/oci/view_oci_connector_3.0.htm) documents both QPS paths and the same `connectorState`, `disabled`, `lastSync`, `nextSync`, `cloudviewUuid` and nested app-info structure used by this client. Its heading labels search GET, but its all-connectors example explicitly uses POST and its filtered example supplies a `ServiceRequest`; the client uses POST for search and GET for details. The sample omits `hasMoreRecords`. We retain the existing strict pagination checks: a missing flag fails the OCI fetch and preserves its state rather than treating a potentially partial result as complete. The synthetic fixture adds the standard QPS pagination flag and an error leaf for regression coverage; these additions are not presented as captured tenant evidence. OCI requests and pagination still require a tenant dry run.
+
+Qualys also explicitly supports OCI in the [gateway list API](https://docs.qualys.com/en/conn/api/asset_data_connector/list_connector.htm), `GET /connectors/v1.0/OCI/list`, with bearer authentication and zero-based `pageNumber`/`pageSize`. That is a separate API contract and is not used here because the documented QPS interface fits the existing client and credentials. The [OCI create](https://docs.qualys.com/en/conn/api/oci_3/create_oci_Connector_3.html) and [update](https://docs.qualys.com/en/conn/api/oci_3/update_oci_connector_3.htm) pages contain copied AWS headings; their examples use `ociassetdataconnector`. This tracker never invokes create, update, run or delete operations.
 
 Search bodies use `ServiceRequest.preferences` with `limitResults=100`. [Qualys QPS pagination](https://docs.qualys.com/en/was/api/get_started/making_api_calls.htm) defines `startFromOffset` as a **1-based** index and documents `id GREATER lastId`. The client starts at 1, uses that id filter and offset 1 when a lastId cursor exists, otherwise advances the current offset by the number of returned rows. It rejects duplicate ids, repeated cursors, empty continuation pages, and count mismatches. This generic QPS pagination contract supplements the connector docs, which only describe page size.
 
@@ -113,7 +125,7 @@ The state branch retains historical names and error messages in Git history. Res
 Production execution is via GitHub Actions. For local development, inject environment variables through your shell or secret manager; no `.env` loader or credential file is used.
 
 ```text
-python -m connector_health run [--dry-run] [--force-notify] [--state-file PATH] [--providers AWS,GCP]
+python -m connector_health run [--dry-run] [--force-notify] [--state-file PATH] [--providers AWS,AZURE,GCP,OCI]
 ```
 
 ```sh
@@ -123,4 +135,4 @@ python -m ruff format --check .
 python -m pytest -q
 ```
 
-CI runs these checks on Python 3.12 for pull requests and code pushes. Tests use synthetic, sanitized fixtures shaped like the documented envelopes and injected UTC clocks (no real network or email). They cover grace/tolerance boundaries, recovery/flapping, transient states, dedup/reminders, grouping/escaping, retries/pagination, API isolation, SMTP failure, dry-run immutability, and state validation.
+CI runs these checks on Python 3.12 for pull requests and code pushes. Tests use synthetic, sanitized fixtures shaped like the documented envelopes and injected UTC clocks (no real network or email). They cover grace/tolerance boundaries, recovery/flapping, transient states, dedup/reminders, grouping/escaping, retries/pagination, API isolation, SMTP failure, dry-run immutability, and state validation. OCI coverage includes the Actions CLI defaults, tenancy mapping, private-key redaction, detail fallback, incomplete-fetch state preservation, alert deduplication, and monthly totals/CSV/inventory carry-forward.

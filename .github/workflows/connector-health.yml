@@ -4,6 +4,10 @@ on:
     - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
+      providers:
+        description: 'Providers for this run, e.g. OCI (blank uses repository defaults)'
+        type: string
+        default: ''
       dry_run:
         description: Preview emails without sending or saving state
         type: boolean
@@ -71,7 +75,7 @@ jobs:
           GRACE_HOURS: ${{ vars.GRACE_HOURS }}
           GRACE_TOLERANCE_HOURS: ${{ vars.GRACE_TOLERANCE_HOURS }}
           REMIND_EVERY_HOURS: ${{ vars.REMIND_EVERY_HOURS }}
-          PROVIDERS: ${{ vars.PROVIDERS }}
+          PROVIDERS: ${{ inputs.providers || vars.PROVIDERS }}
           INCLUDE_RESOLVED: ${{ vars.INCLUDE_RESOLVED }}
           DRY_RUN: ${{ inputs.dry_run || false }}
           FORCE_NOTIFY: ${{ inputs.force_notify || false }}

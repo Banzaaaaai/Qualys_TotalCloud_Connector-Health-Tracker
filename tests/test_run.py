@@ -25,7 +25,7 @@ CONFIG = Config(
 )
 CONNECTORS = [
     Connector(p, str(i), f"<{p}&{i}>", "ERROR", error="<script>alert('x')</script>\n" + "x" * 2000)
-    for i, p in enumerate(("AWS", "AWS", "AZURE", "GCP"))
+    for i, p in enumerate(("AWS", "AWS", "AZURE", "GCP", "OCI"))
 ]
 
 
@@ -50,10 +50,11 @@ def test_one_email_per_provider_and_escaping(tmp_path):
         process(CONFIG, client_for(CONNECTORS), path, now=NOW + timedelta(hours=23), sender=sender)
         == 0
     )
-    assert sender.call_count == 3
+    assert sender.call_count == 4
     messages = [call.args[0] for call in sender.call_args_list]
     assert "[AWS] 2 connector(s)" in messages[0]["Subject"]
     assert "[AZURE] 1 connector(s)" in messages[1]["Subject"]
+    assert "[OCI] 1 connector(s)" in messages[3]["Subject"]
     text = messages[0].get_body(preferencelist=("plain",)).get_content()
     html = messages[0].get_body(preferencelist=("html",)).get_content()
     assert "x" * 2000 in text and "<AWS&0>" in text
@@ -80,13 +81,13 @@ def test_api_failure_preserves_provider_and_continues(tmp_path):
     after = load(path)
     for c in CONNECTORS[:2]:
         assert after["episodes"][c.key] == before["episodes"][c.key]
-    assert sender.call_count == 2
+    assert sender.call_count == 3
 
 
 def test_smtp_failure_persists_observations_without_ack(tmp_path):
     path = tmp_path / "state.json"
     initial_state(path)
-    sender = Mock(side_effect=[MailError("failed"), None, None])
+    sender = Mock(side_effect=[MailError("failed"), None, None, None])
     assert (
         process(CONFIG, client_for(CONNECTORS), path, now=NOW + timedelta(hours=24), sender=sender)
         == 1
@@ -108,7 +109,7 @@ def test_dry_run_never_writes_or_sends(tmp_path, capsys):
     )
     assert path.read_bytes() == before
     sender.assert_not_called()
-    assert capsys.readouterr().out.count("Subject:") == 3
+    assert capsys.readouterr().out.count("Subject:") == 4
     missing = tmp_path / "missing.json"
     process(
         CONFIG, client_for(CONNECTORS), missing, dry_run=True, force=True, now=NOW, sender=sender
@@ -124,7 +125,7 @@ def test_no_email_for_only_resolved(tmp_path):
     process(CONFIG, client_for(healthy), path, now=NOW + timedelta(hours=24), sender=sender)
     sender.assert_not_called()
     state = load(path)
-    assert not state["episodes"] and len(state["resolved"]) == 4
+    assert not state["episodes"] and len(state["resolved"]) == 5
 
 
 def test_state_validation_and_atomic_round_trip(tmp_path):
