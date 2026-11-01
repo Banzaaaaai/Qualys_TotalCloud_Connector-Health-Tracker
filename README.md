@@ -1,6 +1,6 @@
 # Qualys Cloud Connector Health Tracker
 
-A Python 3.12 GitHub Actions job that observes AWS, Azure, GCP and Oracle Cloud Infrastructure (OCI) connectors daily and sends one Gmail message per provider with eligible failures, plus a monthly statistics report. State lives on the private repository's orphan `health-state` branch. No external database, state cache, or artifacts are used.
+A Python 3.12 GitHub Actions job that observes AWS, Azure, GCP and Oracle Cloud Infrastructure (OCI) connectors daily and sends one Gmail message per provider with eligible failures, plus a monthly statistics report. State lives on the repository's orphan `health-state` branch. No external database, state cache, or artifacts are used.
 
 ## Setup
 
@@ -33,15 +33,32 @@ Use the same five email secret names and values as your release tracker. For Gma
 | `INCLUDE_RESOLVED` | `false`; set `true` to queue recoveries for the next failure email |
 
 6. Open Actions → Connector health → Run workflow. First select `dry_run=true` and `force_notify=true` to preview first-observed failures immediately. Check the logs and summary, then run with both inputs false to begin tracking. A live forced run sends real mail and marks the episode notified. Force bypasses grace only; it does not bypass deduplication. Dry runs do not require Gmail secrets.
-7. The first non-dry run with a successful provider automatically initializes and pushes `health-state` as an orphan branch containing only `state.json`. No manual branch setup is necessary. If every provider fails, no branch is created. Later runs check out this branch into `health-state/`; a missing state file on an existing branch fails rather than silently losing history.
+7. The first non-dry run with a successful provider automatically initializes and pushes `health-state` as an orphan branch containing `state.json` and monthly statistics under `monthly/`. No manual branch setup is necessary. If every provider fails, no branch is created. Later runs check out this branch into `health-state/`; a missing state file on an existing branch fails rather than silently losing history.
 
 The schedule is **06:00 UTC daily**. Change `on.schedule.cron` in `.github/workflows/connector-health.yml` to adjust it; cron cannot use a repository variable. Enable GitHub Actions failure notifications for your account. API, SMTP, configuration, corrupt state, and state push failures fail the job.
+
+### Manual workflow inputs
+
+Open Actions → Connector health → Run workflow on the default branch:
+
+| Input | Default | Behavior |
+| --- | --- | --- |
+| `providers` | Empty | Optional comma-separated selection, such as `OCI` or `AWS,OCI`, for this run |
+| `dry_run` | `true` | Preview eligible alerts and pending monthly reports without sending them or saving observations |
+| `force_notify` | `false` | Bypass the grace period; episode deduplication still applies |
+| `monthly_report` | `none` | `log` displays the saved month-to-date report; `email` sends it |
+
+Provider selection uses the manual `providers` input first, then the repository `PROVIDERS` variable, then `AWS,AZURE,GCP,OCI`. A manual selection does not change future scheduled runs. Scheduled runs use the repository selection or all four providers and save observations with the normal grace period.
+
+The optional `monthly_report` step reads saved statistics; a dry run does not add its observations to that report. Selecting `monthly_report=email` sends the saved report even when `dry_run=true`; keep it at `none` or `log` for an email-free preview.
 
 ### Adding OCI to an existing installation
 
 OCI uses the same `QUALYS_BASE_URL`, `QUALYS_USERNAME` and `QUALYS_PASSWORD` as the other providers. Ensure the Qualys API user can read your OCI connectors. No Oracle credentials or additional secrets are needed by this tracker.
 
 When `PROVIDERS` is unset or empty, OCI is included automatically. If you explicitly set `PROVIDERS`, append `OCI` (for example, `AWS,AZURE,GCP,OCI`). For a manual workflow dry run, set the optional `providers` input to `OCI`; leave it blank for the repository defaults. Locally: `python -m connector_health run --providers OCI --dry-run --force-notify`. Existing AWS/Azure/GCP history remains valid; OCI starts its own grace period and monthly inventory baseline on its first successful live check.
+
+OCI uses the same grace, recovery, reminder, disabled-connector and deduplication rules as the other providers. Its tenancy OCID appears as the cloud account in alerts and monthly CSV exports. OCI also appears in the workflow summary and monthly inventory/status totals.
 
 ## Episode semantics
 
@@ -108,6 +125,8 @@ When an error connector has no error/status text in the search result, a detail 
 
 An [OCI-only tenant dry run on 2026-11-01](https://github.com/Banzaaaaai/Qualys_TotalCloud_Connector-Health-Tracker/actions/runs/41310886764) successfully fetched OCI connectors through the production CLI, including the required pagination validation. The persistence step was skipped. This verifies the tested tenant's response contract, not every Qualys platform or permission scope; use a dry run when deploying to another subscription. Detail fallback and multi-page edge cases also have offline fixture coverage.
 
+The [first live OCI monitoring run on 2026-11-01](https://github.com/Banzaaaaai/Qualys_TotalCloud_Connector-Health-Tracker/actions/runs/41311177644) completed successfully on `main`, persisted its first observation to `health-state`, and initialized the monthly OCI baseline. It used the normal grace period and sent no alerts. [CI for that rollout](https://github.com/Banzaaaaai/Qualys_TotalCloud_Connector-Health-Tracker/actions/runs/41311175592) passed lint, formatting and all 79 tests.
+
 Qualys also explicitly supports OCI in the [gateway list API](https://docs.qualys.com/en/conn/api/asset_data_connector/list_connector.htm), `GET /connectors/v1.0/OCI/list`, with bearer authentication and zero-based `pageNumber`/`pageSize`. That is a separate API contract and is not used here because the documented QPS interface fits the existing client and credentials. The [OCI create](https://docs.qualys.com/en/conn/api/oci_3/create_oci_Connector_3.html) and [update](https://docs.qualys.com/en/conn/api/oci_3/update_oci_connector_3.htm) pages contain copied AWS headings; their examples use `ociassetdataconnector`. This tracker never invokes create, update, run or delete operations.
 
 Search bodies use `ServiceRequest.preferences` with `limitResults=100`. [Qualys QPS pagination](https://docs.qualys.com/en/was/api/get_started/making_api_calls.htm) defines `startFromOffset` as a **1-based** index and documents `id GREATER lastId`. The client starts at 1, uses that id filter and offset 1 when a lastId cursor exists, otherwise advances the current offset by the number of returned rows. It rejects duplicate ids, repeated cursors, empty continuation pages, and count mismatches. This generic QPS pagination contract supplements the connector docs, which only describe page size.
@@ -116,7 +135,7 @@ Basic auth and `X-Requested-With: python-requests` / `Accept: application/json` 
 
 ## Security and operations
 
-Only selected fields leave the API client. Auth records are never serialized into state or logs; credential fields are discarded, and configured secrets plus credential values identified in API responses are redacted from strings. Ordinary INFO logs contain JSON event records, counts, and connector ids, never request bodies or auth headers. Dry-run email previews intentionally expose connector names/account metadata/error text in private Actions logs. Qualys must not include unrelated secrets in free-form error text; arbitrary unknown secrets cannot be identified reliably.
+Only selected fields leave the API client. Auth records are never serialized into state or logs; credential fields are discarded, and configured secrets plus credential values identified in API responses are redacted from strings. Ordinary INFO logs contain JSON event records, counts, and connector ids, never request bodies or auth headers. Dry-run email previews include connector names/account metadata/error text in Actions logs, whose visibility follows repository access. Qualys must not include unrelated secrets in free-form error text; arbitrary unknown secrets cannot be identified reliably.
 
 Email follows [qualys-release-tracker](https://github.com/Banzaaaaai/qualys-release-tracker): configurable `SMTP_HOST`/`SMTP_PORT` (defaults `smtp.gmail.com:587`), certificate-verified STARTTLS before authentication and stdlib `smtplib`/`email`. HTML escapes every API-provided string. Plain text includes untruncated error details for Jira. Only providers with eligible failures get mail. Secrets are scoped to the monitor step; action versions are pinned to full commit SHAs. The pip cache contains dependencies only, never monitoring state.
 
